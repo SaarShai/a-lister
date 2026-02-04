@@ -1,4 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { AuthContext } from "./auth.js";
 
 import "dotenv/config";
 import { createServer } from "node:http";
@@ -219,11 +220,24 @@ async function buildSearchView(viewerId: string, query: string) {
   };
 }
 
-function createMcpServer(viewerId: string) {
+function createMcpServer(authContext: AuthContext) {
   const server = new McpServer({
     name: "a-lister",
     version: "0.1.0",
   });
+
+  let viewerCache: Awaited<ReturnType<typeof ensureUser>> | null = null;
+  const getViewer = async () => {
+    if (!viewerCache) {
+      viewerCache = await ensureUser({
+        authProviderId: authContext.authProviderId,
+        handle: authContext.handle,
+        displayName: authContext.displayName ?? null,
+        avatarUrl: authContext.avatarUrl ?? null,
+      });
+    }
+    return viewerCache;
+  };
 
   server.registerResource(
     "alister-widget",
@@ -250,7 +264,8 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async () => {
-      const view = await buildListView({ viewerId, listId: null });
+      const viewer = await getViewer();
+      const view = await buildListView({ viewerId: viewer.id, listId: null });
       return buildStructuredResponse({ view }, "Here are your lists.");
     }
   );
@@ -265,7 +280,8 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ list_id }) => {
-      const view = await buildListView({ viewerId, listId: list_id });
+      const viewer = await getViewer();
+      const view = await buildListView({ viewerId: viewer.id, listId: list_id });
       return buildStructuredResponse({ view }, "List loaded.");
     }
   );
@@ -282,8 +298,9 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ title, type }) => {
-      const listId = await createList({ ownerId: viewerId, title, type });
-      const view = await buildListView({ viewerId, listId });
+      const viewer = await getViewer();
+      const listId = await createList({ ownerId: viewer.id, title, type });
+      const view = await buildListView({ viewerId: viewer.id, listId });
       return buildStructuredResponse({ view, effects: { lastCreatedListId: listId } }, "List created.");
     }
   );
@@ -302,11 +319,12 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ list_id, title, note, url }) => {
+      const viewer = await getViewer();
       const list = await getListById(list_id);
       if (!list) throw new Error("List not found.");
-      requireListOwner(list.owner_id, viewerId);
+      requireListOwner(list.owner_id, viewer.id);
       const itemId = await addItem({ listId: list_id, title, note, url });
-      const view = await buildListView({ viewerId, listId: list_id });
+      const view = await buildListView({ viewerId: viewer.id, listId: list_id });
       return buildStructuredResponse(
         { view, effects: { lastAddedItemId: itemId } },
         "Item added."
@@ -329,11 +347,12 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ list_id, item_id, title, note, url }) => {
+      const viewer = await getViewer();
       const list = await getListById(list_id);
       if (!list) throw new Error("List not found.");
-      requireListOwner(list.owner_id, viewerId);
+      requireListOwner(list.owner_id, viewer.id);
       await updateItem({ itemId: item_id, listId: list_id, title, note, url });
-      const view = await buildListView({ viewerId, listId: list_id });
+      const view = await buildListView({ viewerId: viewer.id, listId: list_id });
       return buildStructuredResponse({ view }, "Item updated.");
     }
   );
@@ -351,11 +370,12 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ list_id, item_id, status }) => {
+      const viewer = await getViewer();
       const list = await getListById(list_id);
       if (!list) throw new Error("List not found.");
-      requireListOwner(list.owner_id, viewerId);
+      requireListOwner(list.owner_id, viewer.id);
       await setItemStatus({ listId: list_id, itemId: item_id, status });
-      const view = await buildListView({ viewerId, listId: list_id });
+      const view = await buildListView({ viewerId: viewer.id, listId: list_id });
       return buildStructuredResponse(
         { view, effects: { lastMovedItemId: item_id, lastMoveTo: status } },
         "Item moved."
@@ -375,6 +395,8 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ source_item_id, viewing_list_id }) => {
+      const viewer = await getViewer();
+      const viewerId = viewer.id;
       const source = await findSourceItem(source_item_id);
       if (!source) throw new Error("Source item not found.");
       if (source.owner_id === viewerId) {
@@ -427,7 +449,8 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ query }) => {
-      const view = await buildSearchView(viewerId, query);
+      const viewer = await getViewer();
+      const view = await buildSearchView(viewer.id, query);
       return buildStructuredResponse({ view }, "Search results.");
     }
   );
@@ -442,13 +465,15 @@ function createMcpServer(viewerId: string) {
       _meta: { "openai/outputTemplate": toolOutputTemplate },
     },
     async ({ user_id }) => {
-      const view = await buildProfileView({ viewerId, profileUserId: user_id });
+      const viewer = await getViewer();
+      const view = await buildProfileView({ viewerId: viewer.id, profileUserId: user_id });
       return buildStructuredResponse({ view }, "Profile loaded.");
     }
   );
 
   return server;
 }
+
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
@@ -485,14 +510,8 @@ const server = createServer(async (req, res) => {
   if (url.pathname === MCP_PATH || url.pathname.startsWith(`${MCP_PATH}/`)) {
     try {
       const authContext = await getAuthContext(req);
-      const viewer = await ensureUser({
-        authProviderId: authContext.authProviderId,
-        handle: authContext.handle,
-        displayName: authContext.displayName ?? null,
-        avatarUrl: authContext.avatarUrl ?? null,
-      });
+      const mcpServer = createMcpServer(authContext);
 
-      const mcpServer = createMcpServer(viewer.id);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
       });
