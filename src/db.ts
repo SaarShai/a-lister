@@ -38,6 +38,9 @@ const sslEnabled = process.env.DATABASE_SSL === "true";
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: sslEnabled ? { rejectUnauthorized: false } : undefined,
+  connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 5000),
+  idleTimeoutMillis: 30000,
+  max: 10,
 });
 
 export async function query<T>(text: string, params: unknown[] = []): Promise<T[]> {
