@@ -468,6 +468,12 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ ok: true }));
     return;
   }
+
+  if (req.method === "GET" && url.pathname === MCP_PATH) {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true, name: "a-lister", version: "0.1.0" }));
+  return;
+}
   
 
   if (req.method === "GET" && url.pathname === "/.well-known/oauth-protected-resource") {
