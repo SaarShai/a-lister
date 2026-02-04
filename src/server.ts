@@ -1,3 +1,5 @@
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+
 import "dotenv/config";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -41,10 +43,12 @@ const listTypeSchema = z
 
 const toolOutputTemplate = "ui://widget/alister.html";
 
-function buildStructuredResponse(payload: Record<string, unknown>, message: string) {
-  const content: { type: "text"; text: string }[] = [{ type: "text", text: message }];
+function buildStructuredResponse(
+  payload: Record<string, unknown>,
+  message: string
+): CallToolResult {
   return {
-    content,
+    content: [{ type: "text", text: message }],
     structuredContent: payload,
   };
 }
