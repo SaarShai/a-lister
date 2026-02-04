@@ -468,6 +468,7 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ ok: true }));
     return;
   }
+  
 
   if (req.method === "GET" && url.pathname === "/.well-known/oauth-protected-resource") {
     res.writeHead(200, { "Content-Type": "application/json" });
