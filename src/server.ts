@@ -41,7 +41,7 @@ const listTypeSchema = z
 
 const toolOutputTemplate = "ui://widget/alister.html";
 
-function buildStructuredResponse(payload: unknown, message: string) {
+function buildStructuredResponse(payload: Record<string, unknown>, message: string) {
   const content: { type: "text"; text: string }[] = [{ type: "text", text: message }];
   return {
     content,
