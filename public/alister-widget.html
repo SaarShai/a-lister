@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A-Lister</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f5f2;
+        --panel: #ffffff;
+        --ink: #1f1c18;
+        --muted: #6a635a;
+        --accent: #ff7a59;
+        --accent-soft: #ffe2d8;
+        --line: #ebe4dc;
+        --shadow: 0 12px 36px rgba(30, 26, 20, 0.12);
+        --radius: 18px;
+        --radius-sm: 12px;
+        --font-display: "Iowan Old Style", "Palatino", "Book Antiqua", serif;
+        --font-body: "Avenir Next", "Avenir", "Trebuchet MS", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--font-body);
+        background: radial-gradient(circle at top, #fff6f1 0%, #f7f5f2 45%, #f1efe9 100%);
+        color: var(--ink);
+      }
+
+      .app {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 18px 18px 28px;
+      }
+
+      .shell {
+        background: var(--panel);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 18px;
+        border: 1px solid #f1ece6;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .brand {
+        font-family: var(--font-display);
+        font-size: 26px;
+        letter-spacing: 0.4px;
+      }
+
+      .user {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .mode-toggle {
+        display: inline-flex;
+        background: #f3eee8;
+        border-radius: 999px;
+        padding: 4px;
+        gap: 4px;
+      }
+
+      .mode-toggle button {
+        border: none;
+        background: transparent;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        cursor: pointer;
+        color: var(--muted);
+        transition: background 0.2s ease, color 0.2s ease;
+      }
+
+      .mode-toggle button.active {
+        background: var(--panel);
+        color: var(--ink);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      .section {
+        margin-top: 16px;
+      }
+
+      .section-title {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1.4px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .chip-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        border: 1px solid var(--line);
+        background: #faf7f3;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      .chip.active {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 122, 89, 0.2);
+      }
+
+      .chip small {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      .list-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        background: #fff;
+      }
+
+      .list-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .list-title {
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .list-meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr auto;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .form-row.lists {
+        grid-template-columns: 1.4fr 1fr auto;
+      }
+
+      .form-row input {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+
+      .form-row button {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        border-radius: 12px;
+        padding: 8px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .form-row button:active {
+        transform: translateY(1px) scale(0.98);
+      }
+
+      .item-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .item {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: #fff;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: start;
+        position: relative;
+      }
+
+      .item.is-new {
+        animation: pop-in 0.35s ease;
+      }
+
+      .item.is-moved {
+        animation: slide-in 0.35s ease;
+      }
+
+      .item-check {
+        margin-top: 2px;
+      }
+
+      .item-title {
+        font-weight: 600;
+      }
+
+      .item-note {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+
+      .item-link {
+        font-size: 12px;
+        color: var(--accent);
+        text-decoration: none;
+        margin-top: 4px;
+        display: inline-block;
+      }
+
+      .item-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .bookmark-btn {
+        border: none;
+        background: var(--accent-soft);
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+      }
+
+      .bookmark-btn.active {
+        animation: spark 0.5s ease;
+      }
+
+      .divider {
+        height: 1px;
+        background: var(--line);
+        margin: 16px 0;
+      }
+
+      .search-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+
+      .search-row input {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 8px 10px;
+      }
+
+      .search-row button {
+        border: none;
+        background: #1f1c18;
+        color: #fff;
+        border-radius: 12px;
+        padding: 8px 12px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .empty {
+        color: var(--muted);
+        font-size: 13px;
+        padding: 12px 0;
+      }
+
+      @keyframes pop-in {
+        0% {
+          transform: scale(0.96);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      @keyframes slide-in {
+        0% {
+          transform: translateY(-6px);
+          opacity: 0;
+        }
+        100% {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes spark {
+        0% {
+          transform: scale(0.9);
+          box-shadow: 0 0 0 rgba(255, 122, 89, 0.2);
+        }
+        70% {
+          transform: scale(1.05);
+          box-shadow: 0 0 0 6px rgba(255, 122, 89, 0.2);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: none;
+        }
+      }
+
+      @media (max-width: 700px) {
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <div class="shell">
+        <header>
+          <div>
+            <div class="brand">A-Lister</div>
+            <div class="user" id="user-handle">Loading...</div>
+          </div>
+          <div class="mode-toggle">
+            <button id="mode-mine" class="active">Mine</button>
+            <button id="mode-explore">Explore</button>
+          </div>
+        </header>
+
+        <section class="section" id="lists-panel">
+          <div class="section-title">Your Lists</div>
+          <div class="chip-row" id="my-lists"></div>
+          <form id="new-list-form" class="form-row lists" autocomplete="off">
+            <input type="text" name="title" placeholder="New list title" required />
+            <input type="text" name="type" placeholder="Type (optional)" />
+            <button type="submit">Create</button>
+          </form>
+        </section>
+
+        <section class="section" id="search-panel" hidden>
+          <div class="section-title">Discover People</div>
+          <form id="search-form" class="search-row" autocomplete="off">
+            <input type="text" name="query" placeholder="Search by handle or name" required />
+            <button type="submit">Search</button>
+          </form>
+          <div class="section" id="search-results"></div>
+        </section>
+
+        <section class="section" id="profile-panel" hidden>
+          <div class="section-title">Profile</div>
+          <div id="profile-header" class="list-meta"></div>
+          <div class="chip-row" id="profile-lists"></div>
+        </section>
+
+        <section class="section" id="list-panel" hidden>
+          <div class="list-card">
+            <div class="list-header">
+              <div>
+                <div class="list-title" id="list-title"></div>
+                <div class="list-meta" id="list-meta"></div>
+              </div>
+              <button id="back-to-mine" class="chip" type="button">Back to me</button>
+            </div>
+
+            <form id="new-item-form" class="form-row" autocomplete="off">
+              <input type="text" name="title" placeholder="Add an item" required />
+              <input type="text" name="note" placeholder="Note (optional)" />
+              <input type="url" name="url" placeholder="URL (optional)" />
+              <button type="submit">Add</button>
+            </form>
+
+            <div class="divider"></div>
+
+            <div class="section-title">Main</div>
+            <ul class="item-list" id="items-active"></ul>
+
+            <div class="divider"></div>
+
+            <div class="section-title">Done</div>
+            <ul class="item-list" id="items-done"></ul>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const state = {
+        view: null,
+        lastAddedId: null,
+        lastMovedId: null,
+        lastMoveTo: null,
+        lastBookmarkId: null,
+        overrideMode: null,
+      };
+
+      const $ = (selector) => document.querySelector(selector);
+
+      const elements = {
+        userHandle: $("#user-handle"),
+        modeMine: $("#mode-mine"),
+        modeExplore: $("#mode-explore"),
+        listsPanel: $("#lists-panel"),
+        myLists: $("#my-lists"),
+        newListForm: $("#new-list-form"),
+        searchPanel: $("#search-panel"),
+        searchForm: $("#search-form"),
+        searchResults: $("#search-results"),
+        profilePanel: $("#profile-panel"),
+        profileHeader: $("#profile-header"),
+        profileLists: $("#profile-lists"),
+        listPanel: $("#list-panel"),
+        listTitle: $("#list-title"),
+        listMeta: $("#list-meta"),
+        backToMine: $("#back-to-mine"),
+        newItemForm: $("#new-item-form"),
+        itemsActive: $("#items-active"),
+        itemsDone: $("#items-done"),
+      };
+
+      function extractPayload(payload) {
+        if (!payload) return { view: null, effects: null };
+        if (payload.view || payload.effects) return payload;
+        if (payload.structuredContent?.view || payload.structuredContent?.effects) {
+          return payload.structuredContent;
+        }
+        if (payload.toolOutput?.view || payload.toolOutput?.effects) return payload.toolOutput;
+        if (payload.toolOutput?.structuredContent?.view || payload.toolOutput?.structuredContent?.effects) {
+          return payload.toolOutput.structuredContent;
+        }
+        return { view: null, effects: null };
+      }
+
+      function applyEffects(effects) {
+        if (!effects) return;
+        if (effects.lastAddedItemId) {
+          state.lastAddedId = effects.lastAddedItemId;
+        }
+        if (effects.lastMovedItemId) {
+          state.lastMovedId = effects.lastMovedItemId;
+          state.lastMoveTo = effects.lastMoveTo || null;
+        }
+        if (effects.lastBookmarkItemId) {
+          state.lastBookmarkId = effects.lastBookmarkItemId;
+        }
+      }
+
+      function updateFromOpenAi() {
+        if (!window.openai) return;
+        const payload = extractPayload(window.openai.toolOutput);
+        if (payload.view) {
+          state.view = payload.view;
+          applyEffects(payload.effects);
+          state.overrideMode = null;
+          render();
+        }
+      }
+
+      async function callTool(name, args = {}) {
+        if (!window.openai?.callTool) return;
+        try {
+          const response = await window.openai.callTool(name, args);
+          const payload = extractPayload(response);
+          if (payload.view) {
+            state.view = payload.view;
+            applyEffects(payload.effects);
+            state.overrideMode = null;
+            render();
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      function setWidgetState(partial) {
+        if (!window.openai?.setWidgetState) return;
+        const next = { ...(window.openai.widgetState || {}), ...partial };
+        window.openai.setWidgetState(next);
+      }
+
+      function modeValue() {
+        if (state.overrideMode) return state.overrideMode;
+        return state.view?.mode || "mine";
+      }
+
+      function renderListChips(container, lists, selectedId, onSelect) {
+        container.innerHTML = "";
+        if (!lists || lists.length === 0) {
+          container.innerHTML = "<div class='empty'>No lists yet.</div>";
+          return;
+        }
+        lists.forEach((list) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = `chip ${list.id === selectedId ? "active" : ""}`;
+          chip.innerHTML = `${list.title}<small>${list.active_count} main · ${list.done_count} done</small>`;
+          chip.addEventListener("click", () => onSelect(list.id));
+          container.appendChild(chip);
+        });
+      }
+
+      function renderItems(container, items, options) {
+        container.innerHTML = "";
+        if (!items || items.length === 0) {
+          container.innerHTML = "<div class='empty'>Nothing here yet.</div>";
+          return;
+        }
+        items.forEach((item) => {
+          const li = document.createElement("li");
+          li.className = "item";
+          if (item.id === state.lastAddedId) {
+            li.classList.add("is-new");
+          }
+          if (item.id === state.lastMovedId && state.lastMoveTo === options.status) {
+            li.classList.add("is-moved");
+          }
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = item.status === "done";
+          checkbox.disabled = !options.canToggle;
+          checkbox.addEventListener("change", () => {
+            const nextStatus = checkbox.checked ? "done" : "active";
+            state.lastMovedId = item.id;
+            state.lastMoveTo = nextStatus;
+            callTool("set_item_status", {
+              list_id: options.listId,
+              item_id: item.id,
+              status: nextStatus,
+            });
+          });
+
+          const checkWrap = document.createElement("div");
+          checkWrap.className = "item-check";
+          checkWrap.appendChild(checkbox);
+
+          const content = document.createElement("div");
+          const title = document.createElement("div");
+          title.className = "item-title";
+          title.textContent = item.title;
+          content.appendChild(title);
+
+          if (item.note) {
+            const note = document.createElement("div");
+            note.className = "item-note";
+            note.textContent = item.note;
+            content.appendChild(note);
+          }
+          if (item.url) {
+            const link = document.createElement("a");
+            link.className = "item-link";
+            link.textContent = item.url.replace(/^https?:\/\//, "");
+            link.href = item.url;
+            link.target = "_blank";
+            content.appendChild(link);
+          }
+
+          const actions = document.createElement("div");
+          actions.className = "item-actions";
+
+          if (options.showBookmark) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "bookmark-btn";
+            btn.textContent = "Bookmark";
+            btn.addEventListener("click", () => {
+              state.lastBookmarkId = item.id;
+              btn.classList.add("active");
+              callTool("bookmark_item", {
+                source_item_id: item.id,
+                viewing_list_id: options.listId,
+              }).finally(() => {
+                setTimeout(() => btn.classList.remove("active"), 400);
+              });
+            });
+            actions.appendChild(btn);
+          }
+
+          li.appendChild(checkWrap);
+          li.appendChild(content);
+          li.appendChild(actions);
+          container.appendChild(li);
+        });
+      }
+
+      function render() {
+        const view = state.view;
+        if (!view) {
+          elements.userHandle.textContent = "Connect to A-Lister";
+          elements.listPanel.hidden = true;
+          elements.searchPanel.hidden = false;
+          elements.searchResults.innerHTML = "<div class='empty'>Waiting for data...</div>";
+          return;
+        }
+
+        const mode = modeValue();
+        elements.modeMine.classList.toggle("active", mode === "mine" || mode === "profile");
+        elements.modeExplore.classList.toggle("active", mode === "search");
+
+        const viewerLabel = view.viewer?.handle ? `@${view.viewer.handle}` : "";
+        elements.userHandle.textContent = viewerLabel;
+
+        elements.listsPanel.hidden = mode === "search";
+        elements.searchPanel.hidden = mode !== "search";
+        elements.profilePanel.hidden = mode !== "profile";
+
+        renderListChips(elements.myLists, view.lists, view.selectedList?.id, (id) => {
+          setWidgetState({ selectedListId: id });
+          callTool("get_list", { list_id: id });
+        });
+
+        if (mode === "search") {
+          renderSearchResults(view.searchResults || []);
+        }
+
+        if (mode === "profile") {
+          const profile = view.profileUser;
+          elements.profileHeader.textContent = profile
+            ? `@${profile.handle} · ${profile.displayName || ""}`
+            : "";
+          renderListChips(elements.profileLists, view.profileLists || [], view.selectedList?.id, (id) => {
+            callTool("get_list", { list_id: id });
+          });
+        }
+
+        const showListPanel = mode !== "search" && view.selectedList;
+        if (showListPanel) {
+          elements.listPanel.hidden = false;
+          elements.listTitle.textContent = view.selectedList.title;
+          const owner = view.selectedList.owner_handle ? `@${view.selectedList.owner_handle}` : "";
+          const counts = `${view.selectedList.active_count} main · ${view.selectedList.done_count} done`;
+          elements.listMeta.textContent = `${view.selectedList.type} · ${owner} · ${counts}`;
+
+          const isOwner = view.selectedList.owner_id === view.viewer?.id;
+          elements.newItemForm.style.display = isOwner ? "grid" : "none";
+          elements.backToMine.style.display = isOwner ? "none" : "inline-flex";
+
+          renderItems(elements.itemsActive, view.itemsActive || [], {
+            listId: view.selectedList.id,
+            canToggle: isOwner,
+            showBookmark: !isOwner,
+            status: "active",
+          });
+          renderItems(elements.itemsDone, view.itemsDone || [], {
+            listId: view.selectedList.id,
+            canToggle: isOwner,
+            showBookmark: !isOwner,
+            status: "done",
+          });
+        } else {
+          elements.listPanel.hidden = true;
+        }
+
+        if (state.lastAddedId || state.lastMovedId) {
+          setTimeout(() => {
+            state.lastAddedId = null;
+            state.lastMovedId = null;
+            state.lastMoveTo = null;
+          }, 400);
+        }
+      }
+
+      function renderSearchResults(results) {
+        elements.searchResults.innerHTML = "";
+        if (!results || results.length === 0) {
+          elements.searchResults.innerHTML = "<div class='empty'>No results yet.</div>";
+          return;
+        }
+        const list = document.createElement("div");
+        list.className = "chip-row";
+        results.forEach((user) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "chip";
+          chip.textContent = user.displayName ? `${user.displayName} (@${user.handle})` : `@${user.handle}`;
+          chip.addEventListener("click", () => {
+            callTool("get_user_profile", { user_id: user.id });
+          });
+          list.appendChild(chip);
+        });
+        elements.searchResults.appendChild(list);
+      }
+
+      elements.modeMine.addEventListener("click", () => {
+        state.overrideMode = null;
+        callTool("list_my_lists");
+      });
+
+      elements.modeExplore.addEventListener("click", () => {
+        state.overrideMode = "search";
+        render();
+      });
+
+      elements.newListForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const title = data.get("title").toString().trim();
+        const type = data.get("type").toString().trim();
+        if (!title) return;
+        callTool("create_list", { title, type: type || "general" });
+        event.target.reset();
+      });
+
+      elements.newItemForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const title = data.get("title").toString().trim();
+        const note = data.get("note").toString().trim();
+        const url = data.get("url").toString().trim();
+        if (!title || !state.view?.selectedList) return;
+        state.lastAddedId = null;
+        callTool("add_item", {
+          list_id: state.view.selectedList.id,
+          title,
+          note: note || null,
+          url: url || null,
+        });
+        event.target.reset();
+      });
+
+      elements.searchForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const query = data.get("query").toString().trim();
+        if (!query) return;
+        callTool("search_users", { query });
+      });
+
+      elements.backToMine.addEventListener("click", () => {
+        callTool("list_my_lists");
+      });
+
+      window.addEventListener("openai:set_globals", updateFromOpenAi);
+      updateFromOpenAi();
+
+      if (!window.openai?.toolOutput) {
+        callTool("list_my_lists");
+      }
+    </script>
+  </body>
+</html>
