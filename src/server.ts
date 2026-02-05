@@ -494,10 +494,16 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === "GET" && url.pathname === MCP_PATH) {
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ ok: true, name: "a-lister", version: "0.1.0" }));
-  return;
+ if (req.method === "GET" && url.pathname === MCP_PATH) {
+  const acceptHeader = Array.isArray(req.headers["accept"])
+    ? req.headers["accept"].join(",")
+    : req.headers["accept"] ?? "";
+  const wantsStream = acceptHeader.includes("text/event-stream");
+  if (!wantsStream) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, name: "a-lister", version: "0.1.0" }));
+    return;
+  }
 }
   
 
