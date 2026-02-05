@@ -422,6 +422,7 @@
     <script>
       const state = {
         view: null,
+        pendingSelectedListId: null,
         lastAddedId: null,
         lastMovedId: null,
         lastMoveTo: null,
@@ -480,12 +481,20 @@
         }
       }
 
+      function clearPendingSelection(view) {
+        if (!state.pendingSelectedListId) return;
+        if (!view?.selectedList || view.selectedList.id === state.pendingSelectedListId) {
+          state.pendingSelectedListId = null;
+        }
+      }
+
       function updateFromOpenAi() {
         if (!window.openai) return;
         const payload = extractPayload(window.openai.toolOutput);
         if (payload.view) {
           state.view = payload.view;
           applyEffects(payload.effects);
+          clearPendingSelection(payload.view);
           state.overrideMode = null;
           render();
         }
@@ -499,6 +508,7 @@
           if (payload.view) {
             state.view = payload.view;
             applyEffects(payload.effects);
+            clearPendingSelection(payload.view);
             state.overrideMode = null;
             render();
           }
@@ -628,6 +638,9 @@
           return;
         }
 
+        const pendingId = state.pendingSelectedListId;
+        const selectedId = pendingId ?? view.selectedList?.id ?? null;
+
         const mode = modeValue();
         elements.modeMine.classList.toggle("active", mode === "mine" || mode === "profile");
         elements.modeExplore.classList.toggle("active", mode === "search");
@@ -639,8 +652,10 @@
         elements.searchPanel.hidden = mode !== "search";
         elements.profilePanel.hidden = mode !== "profile";
 
-        renderListChips(elements.myLists, view.lists, view.selectedList?.id, (id) => {
+        renderListChips(elements.myLists, view.lists, selectedId, (id) => {
+          state.pendingSelectedListId = id;
           setWidgetState({ selectedListId: id });
+          render();
           callTool("get_list", { list_id: id });
         });
 
@@ -653,35 +668,59 @@
           elements.profileHeader.textContent = profile
             ? `@${profile.handle} · ${profile.displayName || ""}`
             : "";
-          renderListChips(elements.profileLists, view.profileLists || [], view.selectedList?.id, (id) => {
+          renderListChips(elements.profileLists, view.profileLists || [], selectedId, (id) => {
+            state.pendingSelectedListId = id;
+            render();
             callTool("get_list", { list_id: id });
           });
         }
 
-        const showListPanel = mode !== "search" && view.selectedList;
+        const showListPanel = mode !== "search" && selectedId;
         if (showListPanel) {
+          const listLookup = [...(view.lists || []), ...(view.profileLists || [])];
+          const pendingList = listLookup.find((list) => list.id === selectedId);
+          const isPending =
+            state.pendingSelectedListId &&
+            (!view.selectedList || view.selectedList.id !== selectedId);
+
           elements.listPanel.hidden = false;
-          elements.listTitle.textContent = view.selectedList.title;
-          const owner = view.selectedList.owner_handle ? `@${view.selectedList.owner_handle}` : "";
-          const counts = `${view.selectedList.active_count} main · ${view.selectedList.done_count} done`;
-          elements.listMeta.textContent = `${view.selectedList.type} · ${owner} · ${counts}`;
 
-          const isOwner = view.selectedList.owner_id === view.viewer?.id;
-          elements.newItemForm.style.display = isOwner ? "grid" : "none";
-          elements.backToMine.style.display = isOwner ? "none" : "inline-flex";
+          if (isPending) {
+            elements.listTitle.textContent = pendingList?.title ?? "Loading list...";
+            if (pendingList) {
+              const owner = pendingList.owner_handle ? `@${pendingList.owner_handle}` : "";
+              const counts = `${pendingList.active_count} main · ${pendingList.done_count} done`;
+              elements.listMeta.textContent = `${pendingList.type} · ${owner} · ${counts}`;
+            } else {
+              elements.listMeta.textContent = "Loading list...";
+            }
+            elements.newItemForm.style.display = "none";
+            elements.backToMine.style.display = "none";
+            elements.itemsActive.innerHTML = "<div class='empty'>Loading...</div>";
+            elements.itemsDone.innerHTML = "";
+          } else if (view.selectedList) {
+            elements.listTitle.textContent = view.selectedList.title;
+            const owner = view.selectedList.owner_handle ? `@${view.selectedList.owner_handle}` : "";
+            const counts = `${view.selectedList.active_count} main · ${view.selectedList.done_count} done`;
+            elements.listMeta.textContent = `${view.selectedList.type} · ${owner} · ${counts}`;
 
-          renderItems(elements.itemsActive, view.itemsActive || [], {
-            listId: view.selectedList.id,
-            canToggle: isOwner,
-            showBookmark: !isOwner,
-            status: "active",
-          });
-          renderItems(elements.itemsDone, view.itemsDone || [], {
-            listId: view.selectedList.id,
-            canToggle: isOwner,
-            showBookmark: !isOwner,
-            status: "done",
-          });
+            const isOwner = view.selectedList.owner_id === view.viewer?.id;
+            elements.newItemForm.style.display = isOwner ? "grid" : "none";
+            elements.backToMine.style.display = isOwner ? "none" : "inline-flex";
+
+            renderItems(elements.itemsActive, view.itemsActive || [], {
+              listId: view.selectedList.id,
+              canToggle: isOwner,
+              showBookmark: !isOwner,
+              status: "active",
+            });
+            renderItems(elements.itemsDone, view.itemsDone || [], {
+              listId: view.selectedList.id,
+              canToggle: isOwner,
+              showBookmark: !isOwner,
+              status: "done",
+            });
+          }
         } else {
           elements.listPanel.hidden = true;
         }
