@@ -43,6 +43,7 @@ const listTypeSchema = z
   .regex(/^[a-zA-Z0-9 _-]+$/, "Type must be simple text");
 
 const toolOutputTemplate = "ui://widget/alister.html";
+const DEV_TOOLS_ENABLED = process.env.DEV_TOOLS === "true";
 
 function buildStructuredResponse(
   payload: Record<string, unknown>,
@@ -85,6 +86,7 @@ async function buildListView(params: {
   if (!params.listId) {
     return {
       viewer,
+      devTools: DEV_TOOLS_ENABLED,
       mode: "mine",
       lists,
       selectedList: null,
@@ -122,6 +124,7 @@ async function buildListView(params: {
     const profileLists = await getListsByOwner(selected.owner_id);
     return {
       viewer,
+      devTools: DEV_TOOLS_ENABLED,
       mode: "profile",
       lists,
       selectedList: selected,
@@ -135,6 +138,7 @@ async function buildListView(params: {
 
   return {
     viewer,
+    devTools: DEV_TOOLS_ENABLED,
     mode: "mine",
     lists,
     selectedList: selected,
@@ -168,6 +172,7 @@ async function buildProfileView(params: {
   if (!listId) {
     return {
       viewer,
+      devTools: DEV_TOOLS_ENABLED,
       mode: "profile",
       lists,
       selectedList: null,
@@ -187,6 +192,7 @@ async function buildProfileView(params: {
 
   return {
     viewer,
+    devTools: DEV_TOOLS_ENABLED,
     mode: selected.owner_id === params.viewerId ? "mine" : "profile",
     lists,
     selectedList: selected,
@@ -204,6 +210,7 @@ async function buildSearchView(viewerId: string, query: string) {
   const results = query ? await searchUsersByQuery(query) : [];
   return {
     viewer,
+    devTools: DEV_TOOLS_ENABLED,
     mode: "search",
     lists,
     selectedList: null,
@@ -471,9 +478,40 @@ function createMcpServer(authContext: AuthContext) {
     }
   );
 
+  if (DEV_TOOLS_ENABLED) {
+    server.registerTool(
+      "seed_demo_user",
+      {
+        title: "Seed demo user",
+        description: "Create a demo user with a public list and one item (dev only).",
+        inputSchema: z.object({}),
+        _meta: { "openai/outputTemplate": toolOutputTemplate },
+      },
+      async () => {
+        const viewer = await getViewer();
+        const suffix = Math.random().toString(36).slice(2, 8);
+        const handle = `demo_${suffix}`;
+        const authProviderId = `dev-demo-${Date.now()}-${suffix}`;
+        const demoUser = await ensureUser({
+          authProviderId,
+          handle,
+          displayName: `Demo ${suffix.toUpperCase()}`,
+          avatarUrl: null,
+        });
+        const listId = await createList({
+          ownerId: demoUser.id,
+          title: "Demo List",
+          type: "general",
+        });
+        await addItem({ listId, title: "Sample item" });
+        const view = await buildSearchView(viewer.id, handle);
+        return buildStructuredResponse({ view }, `Seeded demo user @${demoUser.handle}.`);
+      }
+    );
+  }
+
   return server;
 }
-
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
@@ -494,18 +532,17 @@ const server = createServer(async (req, res) => {
     return;
   }
 
- if (req.method === "GET" && url.pathname === MCP_PATH) {
-  const acceptHeader = Array.isArray(req.headers["accept"])
-    ? req.headers["accept"].join(",")
-    : req.headers["accept"] ?? "";
-  const wantsStream = acceptHeader.includes("text/event-stream");
-  if (!wantsStream) {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: true, name: "a-lister", version: "0.1.0" }));
-    return;
+  if (req.method === "GET" && url.pathname === MCP_PATH) {
+    const acceptHeader = Array.isArray(req.headers["accept"])
+      ? req.headers["accept"].join(",")
+      : req.headers["accept"] ?? "";
+    const wantsStream = acceptHeader.includes("text/event-stream");
+    if (!wantsStream) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, name: "a-lister", version: "0.1.0" }));
+      return;
+    }
   }
-}
-  
 
   if (req.method === "GET" && url.pathname === "/.well-known/oauth-protected-resource") {
     res.writeHead(200, { "Content-Type": "application/json" });
