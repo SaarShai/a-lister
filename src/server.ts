@@ -584,3 +584,4 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`A-Lister MCP server listening on http://localhost:${PORT}${MCP_PATH}`);
 });
+
