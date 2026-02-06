@@ -286,6 +286,18 @@
         cursor: pointer;
       }
 
+      .dev-tools {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .dev-tools .chip {
+        border-style: dashed;
+        color: var(--accent);
+      }
+
       .empty {
         color: var(--muted);
         font-size: 13px;
@@ -379,6 +391,9 @@
             <input type="text" name="query" placeholder="Search by handle or name" required />
             <button type="submit">Search</button>
           </form>
+          <div class="dev-tools" id="dev-tools" hidden>
+            <button id="seed-demo-user" class="chip" type="button">Seed demo user</button>
+          </div>
           <div class="section" id="search-results"></div>
         </section>
 
@@ -442,6 +457,8 @@
         searchPanel: $("#search-panel"),
         searchForm: $("#search-form"),
         searchResults: $("#search-results"),
+        devTools: $("#dev-tools"),
+        seedDemoUser: $("#seed-demo-user"),
         profilePanel: $("#profile-panel"),
         profileHeader: $("#profile-header"),
         profileLists: $("#profile-lists"),
@@ -651,6 +668,7 @@
         elements.listsPanel.hidden = mode === "search";
         elements.searchPanel.hidden = mode !== "search";
         elements.profilePanel.hidden = mode !== "profile";
+        elements.devTools.hidden = !view.devTools;
 
         renderListChips(elements.myLists, view.lists, selectedId, (id) => {
           state.pendingSelectedListId = id;
@@ -798,6 +816,10 @@
         const query = data.get("query").toString().trim();
         if (!query) return;
         callTool("search_users", { query });
+      });
+
+      elements.seedDemoUser.addEventListener("click", () => {
+        callTool("seed_demo_user");
       });
 
       elements.backToMine.addEventListener("click", () => {
